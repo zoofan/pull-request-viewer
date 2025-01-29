@@ -1,19 +1,6 @@
 import React, {useState} from "react";
-import {Card} from "@/components/ui/card";
-import {Input} from "@/components/ui/input";
-import {Button} from "@/components/ui/button";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
-import {Select} from "@/components/ui/select";
-import {Switch} from "@/components/ui/switch";
-
-
+import {Button, Card, Checkbox, Select, Table} from "@radix-ui/themes";
+import {format} from "date-fns";
 
 function App() {
   const [filters, setFilters] = useState({
@@ -64,96 +51,101 @@ function App() {
       {/* Empty Page Content */}
       <main className="flex-1 bg-gray-100 flex items-center justify-center">
         <div className="container mx-auto p-6">
-          <Card>
-            <CardContent>
-              <div className="flex gap-4 mb-4">
-                <Input
-                  type="date"
-                  value={filters.dateRange}
-                  onChange={(e) =>
-                    setFilters({...filters, dateRange: e.target.value})
-                  }
-                  placeholder="Filter by date"
-                />
-                <Select
-                  onChange={(e) =>
-                    setFilters({...filters, status: e.target.value})
-                  }
-                >
-                  <SelectItem value="">All Statuses</SelectItem>
-                  <SelectItem value="Open">Open</SelectItem>
-                  <SelectItem value="Closed">Closed</SelectItem>
-                </Select>
+          <Card className="p-4">
+            <div className="flex gap-4 mb-4">
+              <input
+                type="date"
+                value={filters.dateRange}
+                onChange={(e) =>
+                  setFilters({...filters, dateRange: e.target.value})
+                }
+                className="border p-2 rounded"
+                placeholder="Filter by date"
+              />
+              <Select.Root
+                value={filters.status}
+                onValueChange={(value) =>
+                  setFilters({...filters, status: value})
+                }
+              >
+                <Select.Trigger className="border p-2 rounded">
+                  {filters.status}
+                </Select.Trigger>
+                <Select.Content>
+                  <Select.Item value="Open">Open</Select.Item>
+                  <Select.Item value="Closed">Closed</Select.Item>
+                </Select.Content>
+              </Select.Root>
+              <div className="flex items-center gap-2">
                 <Checkbox
                   checked={filters.atRisk}
                   onCheckedChange={(checked) =>
                     setFilters({...filters, atRisk: checked})
                   }
-                >
-                  Show At-Risk PRs
-                </Checkbox>
-                <Input
-                  type="text"
-                  value={filters.repository}
-                  onChange={(e) =>
-                    setFilters({...filters, repository: e.target.value})
-                  }
-                  placeholder="Filter by repository"
                 />
+                <label>Show At-Risk PRs</label>
               </div>
-              <Table>
-                <TableHead>
-                  <TableRow>
-                    <TableHeaderCell>Status</TableHeaderCell>
-                    <TableHeaderCell>Title</TableHeaderCell>
-                    <TableHeaderCell>Number</TableHeaderCell>
-                    <TableHeaderCell>Repository</TableHeaderCell>
-                    <TableHeaderCell>Author</TableHeaderCell>
-                    <TableHeaderCell>Lines Added</TableHeaderCell>
-                    <TableHeaderCell>Lines Removed</TableHeaderCell>
-                    <TableHeaderCell>Comments</TableHeaderCell>
-                    <TableHeaderCell>Date Opened</TableHeaderCell>
-                    <TableHeaderCell>Date Closed</TableHeaderCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {pullRequests.map((pr) => (
-                    <TableRow
-                      key={pr.number}
-                      className={
-                        new Date(pr.dateOpened) <
-                        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                          ? "bg-red-100"
-                          : ""
-                      }
-                    >
-                      <TableCell>{pr.status}</TableCell>
-                      <TableCell>{pr.title}</TableCell>
-                      <TableCell>#{pr.number}</TableCell>
-                      <TableCell>{pr.repository}</TableCell>
-                      <TableCell>{pr.author}</TableCell>
-                      <TableCell>{pr.linesAdded}</TableCell>
-                      <TableCell>{pr.linesRemoved}</TableCell>
-                      <TableCell>{pr.comments}</TableCell>
-                      <TableCell>
-                        {format(new Date(pr.dateOpened), "yyyy-MM-dd")}
-                      </TableCell>
-                      <TableCell>
-                        {pr.dateClosed
-                          ? format(new Date(pr.dateClosed), "yyyy-MM-dd")
-                          : "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
+              <input
+                type="text"
+                value={filters.repository}
+                onChange={(e) =>
+                  setFilters({...filters, repository: e.target.value})
+                }
+                className="border p-2 rounded"
+                placeholder="Filter by repository"
+              />
+            </div>
+            <Table.Root className="w-full border-collapse border">
+              <Table.Header>
+                <Table.Row className="bg-gray-200">
+                  <Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Title</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Number</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Repository</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Author</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Lines Added</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Lines Removed</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Comments</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Date Opened</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Date Closed</Table.ColumnHeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {pullRequests.map((pr) => (
+                  <Table.Row
+                    key={pr.number}
+                    className={
+                      new Date(pr.dateOpened) <
+                      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+                        ? "bg-red-100"
+                        : ""
+                    }
+                  >
+                    <Table.RowHeaderCell>{pr.status}</Table.RowHeaderCell>
+                    <Table.Cell>{pr.title}</Table.Cell>
+                    <Table.Cell>#{pr.number}</Table.Cell>
+                    <Table.Cell>{pr.repository}</Table.Cell>
+                    <Table.Cell>{pr.author}</Table.Cell>
+                    <Table.Cell>{pr.linesAdded}</Table.Cell>
+                    <Table.Cell>{pr.linesRemoved}</Table.Cell>
+                    <Table.Cell>{pr.comments}</Table.Cell>
+                    <Table.Cell>
+                      {format(new Date(pr.dateOpened), "yyyy-MM-dd")}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {pr.dateClosed
+                        ? format(new Date(pr.dateClosed), "yyyy-MM-dd")
+                        : "-"}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
           </Card>
         </div>
       </main>
     </div>
   );
 }
-
 
 export default App;
