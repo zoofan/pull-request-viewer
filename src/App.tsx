@@ -1,146 +1,128 @@
-import React, {useState} from "react";
-import {Button, Card, Checkbox, Select, Table} from "@radix-ui/themes";
-import {format} from "date-fns";
+import React, {useEffect, useState} from "react";
+import {Card} from "@radix-ui/themes";
+import Navbar from "./components/Navbar";
+import FilterBar from "./components/FilterBar";
+import PullRequestTable from "./components/PullRequestTable";
+
+type PullRequest = {
+  number: number;
+  title: string;
+  user: {
+    login: string;
+  };
+  state: string; // "open" or "closed"
+  created_at: string;
+  closed_at: string | null;
+  additions: number;
+  deletions: number;
+};
 
 function App() {
   const [filters, setFilters] = useState({
-    dateRange: "",
-    status: "",
+    status: "All",
+    dateRangeStart: "",
+    dateRangeEnd: "",
     atRisk: false,
-    repository: "",
+    repository: "facebook/react", // default
   });
 
-  const pullRequests = [
-    // Sample data for UI rendering
-    {
-      status: "Open",
-      title: "Fix login bug",
-      number: 123,
-      repository: "repo-1",
-      author: "johndoe",
-      linesAdded: 50,
-      linesRemoved: 10,
-      comments: 5,
-      dateOpened: "2025-01-20",
-      dateClosed: null,
-    },
-    {
-      status: "Closed",
-      title: "Update readme",
-      number: 456,
-      repository: "repo-2",
-      author: "janedoe",
-      linesAdded: 10,
-      linesRemoved: 5,
-      comments: 2,
-      dateOpened: "2025-01-10",
-      dateClosed: "2025-01-15",
-    },
-  ];
+  const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    // If user clears out the input, you might want to skip fetch
+    // or default to 'facebook/react' again.
+    const repo = filters.repository.trim() || "facebook/react";
+
+    const fetchPublicRepoPRs = async () => {
+      setLoading(true);
+      setError("");
+
+      try {
+        // "state=all" => includes open and closed
+        // "per_page=100" => fetch up to 100 PRs in one request
+        const response = await fetch(
+          `https://api.github.com/repos/${repo}/pulls?state=all&per_page=100`
+        );
+
+        if (!response.ok) {
+          throw new Error(
+            `GitHub API error: ${response.status} ${response.statusText}`
+          );
+        }
+
+        const data = await response.json();
+        setPullRequests(data);
+      } catch (err: any) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPublicRepoPRs();
+  }, [filters.repository]);
+
+  // Filter logic
+  const filteredPRs = pullRequests.filter((pr) => {
+    const createdDate = new Date(pr.created_at);
+
+    // 1. Status filter: "All" => no filtering
+    if (filters.status !== "All") {
+      if (pr.state !== filters.status.toLowerCase()) {
+        return false;
+      }
+    }
+
+    // 2. Date Range Start
+    if (filters.dateRangeStart) {
+      const start = new Date(filters.dateRangeStart);
+      if (createdDate < start) {
+        return false;
+      }
+    }
+
+    // 3. Date Range End
+    if (filters.dateRangeEnd) {
+      const end = new Date(filters.dateRangeEnd);
+      if (createdDate > end) {
+        return false;
+      }
+    }
+
+    // 4. "at risk": older than 7 days & still open
+    if (filters.atRisk) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const isOverAWeek = createdDate < sevenDaysAgo;
+      if (pr.state === "open" && !isOverAWeek) {
+        return false;
+      }
+    }
+
+    return true;
+  });
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Navbar */}
-      <nav className="w-full bg-white shadow-md p-4 flex justify-between items-center">
-        <div className="text-lg font-bold">MyApp</div>
-        <div>
-          <Button variant="outline">Sign In</Button>
-        </div>
-      </nav>
+      <Navbar />
+      <main className="flex-1 bg-gray-50 flex items-start justify-center py-8">
+        <div className="container max-w-6xl mx-auto px-6">
+          <Card className="p-6 rounded-xl shadow-lg bg-white">
+            <h1 className="text-2xl font-semibold text-gray-700 mb-4">
+              Pull Requests
+            </h1>
 
-      {/* Empty Page Content */}
-      <main className="flex-1 bg-gray-100 flex items-center justify-center">
-        <div className="container mx-auto p-6">
-          <Card className="p-4">
-            <div className="flex gap-4 mb-4">
-              <input
-                type="date"
-                value={filters.dateRange}
-                onChange={(e) =>
-                  setFilters({...filters, dateRange: e.target.value})
-                }
-                className="border p-2 rounded"
-                placeholder="Filter by date"
-              />
-              <Select.Root
-                value={filters.status}
-                onValueChange={(value) =>
-                  setFilters({...filters, status: value})
-                }
-              >
-                <Select.Trigger className="border p-2 rounded">
-                  {filters.status}
-                </Select.Trigger>
-                <Select.Content>
-                  <Select.Item value="Open">Open</Select.Item>
-                  <Select.Item value="Closed">Closed</Select.Item>
-                </Select.Content>
-              </Select.Root>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  checked={filters.atRisk}
-                  onCheckedChange={(checked) =>
-                    setFilters({...filters, atRisk: checked})
-                  }
-                />
-                <label>Show At-Risk PRs</label>
-              </div>
-              <input
-                type="text"
-                value={filters.repository}
-                onChange={(e) =>
-                  setFilters({...filters, repository: e.target.value})
-                }
-                className="border p-2 rounded"
-                placeholder="Filter by repository"
-              />
-            </div>
-            <Table.Root className="w-full border-collapse border">
-              <Table.Header>
-                <Table.Row className="bg-gray-200">
-                  <Table.ColumnHeaderCell>Status</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Title</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Number</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Repository</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Author</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Lines Added</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Lines Removed</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Comments</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Date Opened</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Date Closed</Table.ColumnHeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {pullRequests.map((pr) => (
-                  <Table.Row
-                    key={pr.number}
-                    className={
-                      new Date(pr.dateOpened) <
-                      new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
-                        ? "bg-red-100"
-                        : ""
-                    }
-                  >
-                    <Table.RowHeaderCell>{pr.status}</Table.RowHeaderCell>
-                    <Table.Cell>{pr.title}</Table.Cell>
-                    <Table.Cell>#{pr.number}</Table.Cell>
-                    <Table.Cell>{pr.repository}</Table.Cell>
-                    <Table.Cell>{pr.author}</Table.Cell>
-                    <Table.Cell>{pr.linesAdded}</Table.Cell>
-                    <Table.Cell>{pr.linesRemoved}</Table.Cell>
-                    <Table.Cell>{pr.comments}</Table.Cell>
-                    <Table.Cell>
-                      {format(new Date(pr.dateOpened), "yyyy-MM-dd")}
-                    </Table.Cell>
-                    <Table.Cell>
-                      {pr.dateClosed
-                        ? format(new Date(pr.dateClosed), "yyyy-MM-dd")
-                        : "-"}
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Root>
+            <FilterBar filters={filters} setFilters={setFilters} />
+
+            {loading && (
+              <div>Loading Pull Requests for {filters.repository}...</div>
+            )}
+            {error && <div className="text-red-600">{error}</div>}
+
+            {!loading && !error && (
+              <PullRequestTable pullRequests={filteredPRs} />
+            )}
           </Card>
         </div>
       </main>
