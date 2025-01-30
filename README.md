@@ -19,6 +19,10 @@ A React application that fetches up to 500 pull requests from a specified **publ
 
 ## Overview
 
+[Try it out here!](https://pull-request-viewer-3yfh.vercel.app/)
+
+Defaults to the facebook/react repo. When entering a new repo to try, please enter the full repo name, ie 'freeCodeCamp/freeCodeCamp'
+
 This project is a **single-page React application** that leverages the **GitHub REST API** to retrieve pull requests from any specified public GitHub repository. Users can filter pull requests by status (Open/Closed/All), date ranges, or whether they’re “at risk” (open PRs older than 7 days). The user can also paginate the results in sets of 20 per page if more than 20 are returned.
 
 ---

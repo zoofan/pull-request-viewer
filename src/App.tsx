@@ -161,7 +161,7 @@ function App() {
         <div className="container max-w-6xl mx-auto px-6">
           <Card className="p-6 rounded-xl shadow-lg bg-white">
             <h1 className="text-2xl font-semibold text-gray-700 mb-4">
-              Pull Requests (showing 20 per page) – {filters.repository}
+              Pull Requests – {filters.repository}
             </h1>
 
             <FilterBar filters={filters} setFilters={setFilters} />
