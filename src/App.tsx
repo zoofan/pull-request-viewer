@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import {useEffect, useState} from "react";
 import {Card, Button} from "@radix-ui/themes";
 import Navbar from "./components/Navbar";
 import FilterBar from "./components/FilterBar";
