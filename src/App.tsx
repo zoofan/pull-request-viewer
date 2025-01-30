@@ -56,6 +56,13 @@ function App() {
           const url = `https://api.github.com/repos/${repo}/pulls?state=all&per_page=100&page=${currentPage}`;
           const response = await fetch(url);
 
+          if (response.status === 403) {
+            setError(
+              "GitHub API rate limit reached. Please wait a few minutes before trying again."
+            );
+            break; // Stop further requests
+          }
+
           if (!response.ok) {
             throw new Error(
               `GitHub API error: ${response.status} ${response.statusText}`
@@ -115,7 +122,8 @@ function App() {
     if (filters.atRisk) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
       const isOverAWeek = createdDate < sevenDaysAgo;
-      if (pr.state === "open" && !isOverAWeek) {
+      // Ensure only "open" PRs are marked as at risk
+      if (!(pr.state === "open" && isOverAWeek)) {
         return false;
       }
     }
