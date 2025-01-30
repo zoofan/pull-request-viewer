@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from "react";
-import {Card} from "@radix-ui/themes";
+import {Card, Button} from "@radix-ui/themes";
 import Navbar from "./components/Navbar";
 import FilterBar from "./components/FilterBar";
 import PullRequestTable from "./components/PullRequestTable";
@@ -23,37 +23,57 @@ function App() {
     dateRangeStart: "",
     dateRangeEnd: "",
     atRisk: false,
-    repository: "facebook/react", // default
+    // Default repo (user can change this in FilterBar)
+    repository: "facebook/react",
   });
 
+  // All PR data (up to 500) from GitHub
   const [pullRequests, setPullRequests] = useState<PullRequest[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Client-side pagination (20 per page)
+  const [page, setPage] = useState(1);
+  const RESULTS_PER_PAGE = 20;
+
+  // Whenever repository changes, reset page to 1
   useEffect(() => {
-    // If user clears out the input, you might want to skip fetch
-    // or default to 'facebook/react' again.
+    setPage(1);
+  }, [filters.repository]);
+
+  useEffect(() => {
     const repo = filters.repository.trim() || "facebook/react";
 
-    const fetchPublicRepoPRs = async () => {
+    const fetchUpTo500PRs = async () => {
       setLoading(true);
       setError("");
+      let allPRs: PullRequest[] = [];
+      let currentPage = 1;
 
+      // Fetch up to 5 pages * 100 each = 500
       try {
-        // "state=all" => includes open and closed
-        // "per_page=100" => fetch up to 100 PRs in one request
-        const response = await fetch(
-          `https://api.github.com/repos/${repo}/pulls?state=all&per_page=100`
-        );
+        while (currentPage <= 5) {
+          const url = `https://api.github.com/repos/${repo}/pulls?state=all&per_page=100&page=${currentPage}`;
+          const response = await fetch(url);
 
-        if (!response.ok) {
-          throw new Error(
-            `GitHub API error: ${response.status} ${response.statusText}`
-          );
+          if (!response.ok) {
+            throw new Error(
+              `GitHub API error: ${response.status} ${response.statusText}`
+            );
+          }
+
+          const data: PullRequest[] = await response.json();
+          allPRs = [...allPRs, ...data];
+
+          // If fewer than 100 returned, no more pages to fetch
+          if (data.length < 100) {
+            break;
+          }
+
+          currentPage++;
         }
 
-        const data = await response.json();
-        setPullRequests(data);
+        setPullRequests(allPRs);
       } catch (err: any) {
         setError(err.message);
       } finally {
@@ -61,14 +81,14 @@ function App() {
       }
     };
 
-    fetchPublicRepoPRs();
+    fetchUpTo500PRs();
   }, [filters.repository]);
 
-  // Filter logic
+  // Apply client-side filters
   const filteredPRs = pullRequests.filter((pr) => {
     const createdDate = new Date(pr.created_at);
 
-    // 1. Status filter: "All" => no filtering
+    // 1. Status filter: "All" => no filter
     if (filters.status !== "All") {
       if (pr.state !== filters.status.toLowerCase()) {
         return false;
@@ -103,6 +123,29 @@ function App() {
     return true;
   });
 
+  // Now apply client-side pagination to `filteredPRs` => 20 per page
+  const totalPages = Math.ceil(filteredPRs.length / RESULTS_PER_PAGE);
+
+  // Ensure page is within valid range (e.g. if we get fewer results than expected)
+  const currentPage = Math.min(page, totalPages) || 1;
+
+  const startIndex = (currentPage - 1) * RESULTS_PER_PAGE;
+  const endIndex = startIndex + RESULTS_PER_PAGE;
+  const displayedPRs = filteredPRs.slice(startIndex, endIndex);
+
+  // Handlers
+  const handlePrev = () => {
+    if (currentPage > 1) {
+      setPage((prev) => prev - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      setPage((prev) => prev + 1);
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col">
       <Navbar />
@@ -110,18 +153,41 @@ function App() {
         <div className="container max-w-6xl mx-auto px-6">
           <Card className="p-6 rounded-xl shadow-lg bg-white">
             <h1 className="text-2xl font-semibold text-gray-700 mb-4">
-              Pull Requests
+              Pull Requests (showing 20 per page) – {filters.repository}
             </h1>
 
             <FilterBar filters={filters} setFilters={setFilters} />
 
-            {loading && (
-              <div>Loading Pull Requests for {filters.repository}...</div>
-            )}
+            {loading && <div>Loading up to 500 PRs...</div>}
             {error && <div className="text-red-600">{error}</div>}
 
             {!loading && !error && (
-              <PullRequestTable pullRequests={filteredPRs} />
+              <>
+                <PullRequestTable pullRequests={displayedPRs} />
+
+                {/* Client-Side Pagination Controls */}
+                {filteredPRs.length > 0 && (
+                  <div className="flex justify-center items-center gap-4 mt-6">
+                    <Button
+                      variant="soft"
+                      disabled={currentPage <= 1}
+                      onClick={handlePrev}
+                    >
+                      Prev
+                    </Button>
+                    <span>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="soft"
+                      disabled={currentPage >= totalPages}
+                      onClick={handleNext}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </Card>
         </div>
